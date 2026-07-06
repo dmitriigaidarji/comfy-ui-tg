@@ -5,6 +5,7 @@ import { buildPrompt, coerceValue, missingRequired, ParamError } from "../comfy/
 import type { ParamDef, RegisteredWorkflow } from "../comfy/types.ts";
 import { JobQueue } from "./queue.ts";
 import { SessionStore } from "./session.ts";
+import { log } from "../logger.ts";
 import {
   effectiveValue,
   enumKeyboard,
@@ -24,16 +25,35 @@ export function registerHandlers(
   sessions: SessionStore,
   queue: JobQueue,
 ): void {
-  // ---- Access control ----
+  // ---- Access control + request logging ----
   bot.use(async (ctx, next) => {
     const userId = ctx.from?.id;
     if (userId === undefined) return;
+    const kind = ctx.message?.text
+      ? ctx.message.text.startsWith("/")
+        ? "command"
+        : "text"
+      : ctx.message?.photo
+        ? "photo"
+        : ctx.callbackQuery
+          ? "callback"
+          : "update";
+    const detail = ctx.message?.text ?? ctx.callbackQuery?.data ?? "";
     if (cfg.allowedUserIds.size > 0 && !cfg.allowedUserIds.has(userId)) {
-      console.warn(`Rejected user ${userId} (@${ctx.from?.username ?? "?"})`);
+      log.warn("rejected unauthorized user", { userId, username: ctx.from?.username ?? "?", kind });
       await ctx.reply("⛔ You are not authorized to use this bot.");
       return;
     }
-    await next();
+    log.info("update", { userId, username: ctx.from?.username ?? "?", kind, detail });
+    const t0 = Date.now();
+    try {
+      await next();
+    } catch (err) {
+      log.error("handler threw", { userId, kind, err: errMsg(err) });
+      throw err;
+    } finally {
+      log.debug("update handled", { userId, kind, ms: Date.now() - t0 });
+    }
   });
 
   // ---- Commands ----
@@ -99,6 +119,7 @@ export function registerHandlers(
     if (!registry.has(name)) return ctx.answerCallbackQuery("Unknown workflow");
     const s = sessions.select(ctx.from.id, name);
     const wf = registry.get(name)!;
+    log.info("workflow selected", { userId: ctx.from.id, workflow: name });
     await ctx.answerCallbackQuery(`Selected ${wf.title}`);
     await ctx.reply(renderParams(wf, s), {
       parse_mode: "Markdown",
@@ -149,7 +170,9 @@ export function registerHandlers(
       const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
       const uploaded = await client.uploadImage(bytes, `${file.file_unique_id}.png`);
       for (const p of imageParams) s.values[p.key] = uploaded.name;
+      log.info("input image uploaded", { userId: ctx.from.id, name: uploaded.name });
     } catch (err) {
+      log.error("image upload failed", { userId: ctx.from.id, err: errMsg(err) });
       return ctx.reply(`⚠️ Failed to upload image: ${errMsg(err)}`);
     }
     const caption = ctx.message.caption?.trim();
@@ -192,8 +215,10 @@ export function registerHandlers(
       s.values[p.key] = coerceValue(p, raw);
     } catch (err) {
       const msg = err instanceof ParamError ? err.message : errMsg(err);
+      log.info("param rejected", { userId: ctx.from?.id, key: p.key, reason: msg });
       return ctx.reply(`⚠️ ${msg}`);
     }
+    log.info("param set", { userId: ctx.from?.id, key: p.key, value: s.values[p.key] });
     const wf = registry.get(s.workflowName)!;
     const p2 = wf.config.params.find((x) => x.key === p.key)!;
     return ctx.reply(`✅ ${p.label} = ${escapeMd(String(effectiveValue(s, p2)))}`, {
@@ -215,12 +240,18 @@ export function registerHandlers(
 
     const missing = missingRequired(wf.config, s.values);
     if (missing.length > 0) {
+      log.info("generate blocked: missing params", {
+        userId,
+        workflow: wf.name,
+        missing: missing.map((p) => p.key),
+      });
       return ctx.reply(
         `Missing required field(s): ${missing.map((p) => p.label).join(", ")}. Use /params.`,
       );
     }
 
     const { position, done } = queue.enqueue(() => runJob(ctx, wf, s));
+    log.info("job enqueued", { userId, workflow: wf.name, position, waiting: queue.length });
     if (position > 0) {
       await ctx.reply(`🕒 Queued at position ${position}…`);
     } else {
@@ -229,15 +260,19 @@ export function registerHandlers(
     try {
       await done;
     } catch (err) {
+      log.error("job failed", { userId, workflow: wf.name, err: errMsg(err) });
       await ctx.reply(`❌ ${errMsg(err)}`);
     }
   }
 
   async function runJob(ctx: any, wf: RegisteredWorkflow, s: any): Promise<void> {
+    const userId = ctx.from!.id;
     const clientId = `comfy-bot-${process.pid}-${clientSeq++}`;
     const prompt = buildPrompt(wf.workflow, wf.config, s.values);
+    const t0 = Date.now();
 
     const promptId = await client.queuePrompt(prompt, clientId);
+    log.info("prompt queued to comfyui", { userId, workflow: wf.name, promptId });
 
     const heartbeat = setInterval(() => {
       ctx.replyWithChatAction("upload_photo").catch(() => {});
@@ -247,6 +282,7 @@ export function registerHandlers(
     } finally {
       clearInterval(heartbeat);
     }
+    log.info("generation complete", { userId, promptId, ms: Date.now() - t0 });
 
     const history = await client.getHistory(promptId);
     const entry = history[promptId];
@@ -255,6 +291,7 @@ export function registerHandlers(
       : [];
     const outputs = images.filter((im) => im.type !== "temp");
     if (outputs.length === 0) {
+      log.warn("no output images", { userId, promptId });
       await ctx.reply("⚠️ Finished but produced no output images.");
       return;
     }
@@ -262,6 +299,7 @@ export function registerHandlers(
       const bytes = await client.viewImage(im.filename, im.subfolder, im.type);
       await ctx.replyWithPhoto(new InputFile(bytes, im.filename));
     }
+    log.info("images sent", { userId, promptId, count: outputs.length });
   }
 }
 
