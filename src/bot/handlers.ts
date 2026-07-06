@@ -7,6 +7,7 @@ import { JobQueue } from "./queue.ts";
 import { SessionStore } from "./session.ts";
 import { log } from "../logger.ts";
 import {
+  boolKeyboard,
   effectiveValue,
   enumKeyboard,
   escapeMd,
@@ -39,7 +40,8 @@ export function registerHandlers(
           ? "callback"
           : "update";
     const detail = ctx.message?.text ?? ctx.callbackQuery?.data ?? "";
-    if (cfg.allowedUserIds.size > 0 && !cfg.allowedUserIds.has(userId)) {
+    // Fail closed: an empty allowlist authorizes nobody.
+    if (!cfg.allowedUserIds.has(userId)) {
       log.warn("rejected unauthorized user", { userId, username: ctx.from?.username ?? "?", kind });
       await ctx.reply("⛔ You are not authorized to use this bot.");
       return;
@@ -137,6 +139,9 @@ export function registerHandlers(
     if (p.type === "enum") {
       return ctx.reply(`Choose ${p.label}:`, { reply_markup: enumKeyboard(p) });
     }
+    if (p.type === "bool") {
+      return ctx.reply(`Set ${p.label}:`, { reply_markup: boolKeyboard(p) });
+    }
     s.awaitingKey = key;
     const hint = numericHint(p);
     return ctx.reply(`Send a value for *${escapeMd(p.label)}*${hint}`, {
@@ -221,7 +226,7 @@ export function registerHandlers(
     log.info("param set", { userId: ctx.from?.id, key: p.key, value: s.values[p.key] });
     const wf = registry.get(s.workflowName)!;
     const p2 = wf.config.params.find((x) => x.key === p.key)!;
-    return ctx.reply(`✅ ${p.label} = ${escapeMd(String(effectiveValue(s, p2)))}`, {
+    return ctx.reply(`✅ ${escapeMd(p.label)} = ${escapeMd(String(effectiveValue(s, p2)))}`, {
       parse_mode: "Markdown",
     });
   }

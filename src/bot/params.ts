@@ -21,10 +21,10 @@ function displayValue(session: Session, p: ParamDef): string {
 /** Human-readable summary of the active workflow's params + values. */
 export function renderParams(wf: RegisteredWorkflow, session: Session): string {
   const lines = wf.config.params.map((p) => {
-    const req = p.required ? " *" : "";
-    return `• *${p.label}*${req} (\`${p.key}\`): ${escapeMd(displayValue(session, p))}`;
+    const req = p.required ? " ❗" : "";
+    return `• *${escapeMd(p.label)}*${req} (\`${p.key}\`): ${escapeMd(displayValue(session, p))}`;
   });
-  return `*${wf.title}*\n\n${lines.join("\n")}\n\nEdit with /set \`<key> <value>\` or the buttons below.`;
+  return `*${escapeMd(wf.title)}*\n\n${lines.join("\n")}\n\nEdit with /set \`<key> <value>\` or the buttons below.`;
 }
 
 /** Inline keyboard with one "edit" button per editable param (enum options inline). */
@@ -42,6 +42,13 @@ export function enumKeyboard(p: ParamDef): InlineKeyboard {
   const kb = new InlineKeyboard();
   for (const opt of p.options ?? []) kb.text(opt, `setval:${p.key}:${opt}`);
   return kb;
+}
+
+/** Inline keyboard with true/false buttons for a bool param. */
+export function boolKeyboard(p: ParamDef): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ true", `setval:${p.key}:true`)
+    .text("❌ false", `setval:${p.key}:false`);
 }
 
 /** Inline keyboard for picking a workflow. */

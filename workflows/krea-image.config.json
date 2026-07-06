@@ -33,6 +33,37 @@
       "step": 8
     },
     {
+      "key": "preset",
+      "label": "Detail preset",
+      "path": "64.inputs.preset",
+      "type": "enum",
+      "default": "custom",
+      "options": ["balanced", "detail", "subtle", "uniform", "custom"]
+    },
+    {
+      "key": "per_layer_weights",
+      "label": "Per-layer weights",
+      "path": "64.inputs.per_layer_weights",
+      "type": "string",
+      "default": "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,32.0,1.0"
+    },
+    {
+      "key": "multiplier",
+      "label": "Multiplier",
+      "path": "64.inputs.multiplier",
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 10
+    },
+    {
+      "key": "renormalize",
+      "label": "Renormalize",
+      "path": "64.inputs.renormalize",
+      "type": "bool",
+      "default": true
+    },
+    {
       "key": "seed",
       "label": "Seed",
       "path": "68.inputs.seed",

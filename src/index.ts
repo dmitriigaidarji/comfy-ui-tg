@@ -22,9 +22,12 @@ log.info("workflows loaded", {
 });
 log.info("config", {
   comfyHost: cfg.comfyHost,
-  allowed: cfg.allowedUserIds.size || "all",
+  allowedUsers: cfg.allowedUserIds.size,
   maxConcurrent: cfg.maxConcurrentJobs,
 });
+if (cfg.allowedUserIds.size === 0) {
+  log.warn("ALLOWED_USER_IDS is empty — no one is authorized; set it in .env");
+}
 
 const client = new ComfyClient(cfg.comfyHost, cfg.generationTimeoutMs);
 const sessions = new SessionStore(registry, defaultWorkflow);
@@ -32,6 +35,17 @@ const queue = new JobQueue(cfg.maxConcurrentJobs);
 
 const bot = new Bot(cfg.telegramBotToken);
 registerHandlers(bot, cfg, registry, client, sessions, queue);
+
+// Populate Telegram's "/" command menu (autocomplete + menu button).
+await bot.api.setMyCommands([
+  { command: "start", description: "Usage instructions" },
+  { command: "workflows", description: "Pick a workflow" },
+  { command: "params", description: "View & edit fields" },
+  { command: "set", description: "Set a field: /set <key> <value>" },
+  { command: "reset", description: "Restore defaults" },
+  { command: "run", description: "Generate with current settings" },
+  { command: "status", description: "Queue status" },
+]);
 
 bot.catch((err) => {
   log.error("unhandled bot error", {
