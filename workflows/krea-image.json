@@ -1,0 +1,143 @@
+{
+  "3": {
+    "inputs": {
+      "samples": [
+        "68",
+        0
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "4": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "Cosmic splash screen background for a destiny numerology app, dark navy-to-black gradient, a luminous geometric grid of interconnected circles forming a numerology destiny matrix, each intersection glowing faintly in gold and soft violet, thin light-trail lines linking the nodes like a constellation map, tiny scattered stars and soft light particles, gentle lens flare at the center, elegant and premium mobile app aesthetic, calm and mysterious mood, vertical 9:19.5 composition, no text",
+      "clip": [
+        "48",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "10": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "47": {
+    "inputs": {
+      "unet_name": "krea2_turbo_nvfp4.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "48": {
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "52": {
+    "inputs": {
+      "conditioning": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "64": {
+    "inputs": {
+      "preset": "detail",
+      "per_layer_weights": "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,32.0,1.0",
+      "multiplier": 1,
+      "renormalize": true,
+      "conditioning": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "ConditioningKrea2Rebalance",
+    "_meta": {
+      "title": "🎛️ Krea 2 Conditioning Control"
+    }
+  },
+  "68": {
+    "inputs": {
+      "seed": 733819518166217,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "er_sde",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "47",
+        0
+      ],
+      "positive": [
+        "64",
+        0
+      ],
+      "negative": [
+        "52",
+        0
+      ],
+      "latent_image": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "78": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}
