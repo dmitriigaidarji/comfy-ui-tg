@@ -83,10 +83,10 @@
   },
   "64": {
     "inputs": {
-      "preset": "custom",
+      "preset": "detail",
       "per_layer_weights": "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,32.0,1.0",
-      "multiplier": 2,
-      "renormalize": false,
+      "multiplier": 1,
+      "renormalize": true,
       "conditioning": [
         "6",
         0
