@@ -52,7 +52,7 @@
       "label": "Multiplier",
       "path": "64.inputs.multiplier",
       "type": "float",
-      "default": 1,
+      "default": 2,
       "min": 0,
       "max": 10
     },
@@ -61,7 +61,7 @@
       "label": "Renormalize",
       "path": "64.inputs.renormalize",
       "type": "bool",
-      "default": true
+      "default": false
     },
     {
       "key": "seed",
