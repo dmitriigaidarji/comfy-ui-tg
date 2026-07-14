@@ -28,8 +28,8 @@
     "inputs": {
       "text": "Cosmic splash screen background for a destiny numerology app, dark navy-to-black gradient, a luminous geometric grid of interconnected circles forming a numerology destiny matrix, each intersection glowing faintly in gold and soft violet, thin light-trail lines linking the nodes like a constellation map, tiny scattered stars and soft light particles, gentle lens flare at the center, elegant and premium mobile app aesthetic, calm and mysterious mood, vertical 9:19.5 composition, no text",
       "clip": [
-        "48",
-        0
+        "80",
+        1
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -83,10 +83,10 @@
   },
   "64": {
     "inputs": {
-      "preset": "custom",
+      "preset": "detail",
       "per_layer_weights": "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,32.0,1.0",
-      "multiplier": 2,
-      "renormalize": false,
+      "multiplier": 1,
+      "renormalize": true,
       "conditioning": [
         "6",
         0
@@ -106,7 +106,7 @@
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "47",
+        "80",
         0
       ],
       "positive": [
@@ -138,6 +138,25 @@
     "class_type": "SaveImage",
     "_meta": {
       "title": "Save Image"
+    }
+  },
+  "80": {
+    "inputs": {
+      "lora_name": "KNPV4.1_pre.safetensors",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "model": [
+        "47",
+        0
+      ],
+      "clip": [
+        "48",
+        0
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
     }
   }
 }

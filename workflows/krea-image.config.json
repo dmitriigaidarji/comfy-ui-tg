@@ -38,7 +38,7 @@
       "label": "Detail preset",
       "path": "64.inputs.preset",
       "type": "enum",
-      "default": "custom",
+      "default": "detail",
       "options": ["balanced", "detail", "subtle", "uniform", "custom"]
     },
     {
@@ -53,7 +53,7 @@
       "label": "Multiplier",
       "path": "64.inputs.multiplier",
       "type": "float",
-      "default": 2,
+      "default": 1,
       "min": 0,
       "max": 10
     },
@@ -62,7 +62,25 @@
       "label": "Renormalize",
       "path": "64.inputs.renormalize",
       "type": "bool",
-      "default": false
+      "default": true
+    },
+    {
+      "key": "lora_strength_model",
+      "label": "LoRA strength (model)",
+      "path": "80.inputs.strength_model",
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 2
+    },
+    {
+      "key": "lora_strength_clip",
+      "label": "LoRA strength (CLIP)",
+      "path": "80.inputs.strength_clip",
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 2
     },
     {
       "key": "seed",
