@@ -20,9 +20,14 @@ export class JobQueue {
     return this.active;
   }
 
+  /** Position a job enqueued right now would land in (0 = runs immediately). */
+  get nextPosition(): number {
+    return this.pending.length + Math.max(0, this.active - this.maxConcurrent + 1);
+  }
+
   /** Enqueue work; resolves with its result. Returns queue position (0 = runs immediately). */
   enqueue<T>(run: () => Promise<T>): { position: number; done: Promise<T> } {
-    const position = this.pending.length + Math.max(0, this.active - this.maxConcurrent + 1);
+    const position = this.nextPosition;
     const done = new Promise<T>((resolve, reject) => {
       this.pending.push(async () => {
         try {

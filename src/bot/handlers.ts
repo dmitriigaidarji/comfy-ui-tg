@@ -4,6 +4,7 @@ import { ComfyClient } from "../comfy/client.ts";
 import { buildPrompt, coerceValue, missingRequired, ParamError } from "../comfy/workflow.ts";
 import type { HistoryImageOutput, ParamDef, RegisteredWorkflow } from "../comfy/types.ts";
 import { JobQueue } from "./queue.ts";
+import { renderProgress, StatusMessage } from "./progress.ts";
 import { defaultValues, SessionStore } from "./session.ts";
 import { log } from "../logger.ts";
 import { fitScale, imageSize, scaledSize, type ImageSize } from "../image.ts";
@@ -499,25 +500,29 @@ export function registerHandlers(
       );
     }
 
-    const { position, done } = queue.enqueue(() => runJob(ctx, wf, values));
+    // The status message has to exist before enqueue: a free slot runs the job at once.
+    const position = queue.nextPosition;
+    const status = new StatusMessage(
+      ctx,
+      position > 0 ? `🕒 Queued at position ${position}…` : "⏳ Generating…",
+    );
+    const { done } = queue.enqueue(() => runJob(ctx, wf, values, status));
     log.info("job enqueued", { userId, workflow: wf.name, position, waiting: queue.length });
-    if (position > 0) {
-      await ctx.reply(`🕒 Queued at position ${position}…`);
-    } else {
-      await ctx.reply("⏳ Generating…");
-    }
     try {
       await done;
     } catch (err) {
       log.error("job failed", { userId, workflow: wf.name, err: errMsg(err) });
-      await ctx.reply(`❌ ${errMsg(err)}`);
+      await status.close(`❌ ${errMsg(err)}`);
     }
   }
 
+  /** Runs one generation, narrating it into `status`. Owns `status` from here on, except
+   *  on throw — the enqueuer catches that and closes it with the error. */
   async function runJob(
     ctx: any,
     wf: RegisteredWorkflow,
     values: Record<string, unknown>,
+    status: StatusMessage,
   ): Promise<void> {
     const userId = ctx.from!.id;
     const clientId = `comfy-bot-${process.pid}-${clientSeq++}`;
@@ -527,16 +532,22 @@ export function registerHandlers(
 
     const promptId = await client.queuePrompt(prompt, clientId);
     log.info("prompt queued to comfyui", { userId, workflow: wf.name, promptId });
+    // Ours is not the only queue: the prompt may sit in ComfyUI's until the GPU is free.
+    status.set("🧾 Waiting for ComfyUI…");
 
     const heartbeat = setInterval(() => {
       ctx.replyWithChatAction(asDocument ? "upload_document" : "upload_photo").catch(() => {});
     }, 5000);
     try {
-      await client.waitForCompletion(promptId, clientId);
+      await client.waitForCompletion(promptId, clientId, (event) =>
+        status.set(renderProgress(prompt, event, t0)),
+      );
     } finally {
       clearInterval(heartbeat);
     }
+    const elapsed = (Date.now() - t0) / 1000;
     log.info("generation complete", { userId, promptId, ms: Date.now() - t0 });
+    status.set("📤 Sending…");
 
     const history = await client.getHistory(promptId);
     const entry = history[promptId];
@@ -546,7 +557,7 @@ export function registerHandlers(
     const outputs = images.filter((im) => im.type !== "temp");
     if (outputs.length === 0) {
       log.warn("no output images", { userId, promptId });
-      await ctx.reply("⚠️ Finished but produced no output images.");
+      await status.close("⚠️ Finished but produced no output images.");
       return;
     }
     // Offer a one-tap upscale on results, except on the upscale workflow's own output —
@@ -568,6 +579,7 @@ export function registerHandlers(
         rememberSent(sent.chat.id, sent.message_id, im);
       }
     }
+    await status.close(`✅ Done in ${elapsed.toFixed(1)}s`);
     log.info("images sent", { userId, promptId, count: outputs.length, asDocument });
   }
 }

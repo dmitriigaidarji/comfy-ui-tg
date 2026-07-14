@@ -37,6 +37,7 @@ Build a Telegram bot that lets a user trigger **any of several ComfyUI workflows
     session.ts           # per-user state: selected workflow + current param values
     params.ts            # render param prompts, build inline keyboards, parse & validate user input
     queue.ts             # simple in-memory job queue so requests don't collide
+    progress.ts          # live status message: edits one reply in place as ComfyUI reports progress
 /workflows
   <name>.json            # exported API-format ComfyUI workflow (one per workflow)
   <name>.config.json     # param config for <name>.json (see §5)
@@ -59,8 +60,9 @@ Implement against a ComfyUI server reachable at `COMFY_HOST` (e.g. `127.0.0.1:81
   → `GET /history/{prompt_id}`
 - `viewImage(filename: string, subfolder: string, type: string): Promise<Uint8Array>`
   → `GET /view?filename=...&subfolder=...&type=...`
-- `waitForCompletion(promptId: string, clientId: string): Promise<void>`
+- `waitForCompletion(promptId: string, clientId: string, onProgress?: (e: ProgressEvent) => void): Promise<void>`
   → open a WebSocket to `ws://{COMFY_HOST}/ws?clientId={clientId}`, resolve when an `executing` message arrives with `data.node === null && data.prompt_id === promptId` (i.e. execution finished), or reject on an `execution_error` message for that prompt_id. Use Bun's native `WebSocket`.
+  → `onProgress` fires on each `progress` frame (`{value, max, node}` — samplers report per step) and on each node transition, so callers can show a live bar. It's best-effort and can fire many times a second: throttle in the caller, never in the client.
 
 Keep this module free of Telegram-specific logic — it should be usable standalone/testable.
 
@@ -234,7 +236,7 @@ Per-user **session** (in-memory, keyed by Telegram user id): `{ workflowName, va
 - **Plain text message** → fill the param(s) with `source: "message"` (typically `prompt`). If the workflow has no `message` param, treat the text as a `/set` on the required text field. Then run.
 - **Photo message (with optional caption)** → `uploadImage` to ComfyUI, set every `type: "image"` param to the returned `name`; use the caption as the `message`/prompt param if present. Then run.
 - **`/run`** (or `/go`) → generate with the current session values without needing to resend the prompt.
-- **Running a job**: validate required params first (if any are missing, tell the user which and stop). Send a "⏳ generating..." message, call `replyWithChatAction("upload_photo")` periodically, then reply with the resulting image(s) via `ctx.replyWithPhoto`.
+- **Running a job**: validate required params first (if any are missing, tell the user which and stop). Post one status message and edit it in place for the life of the job (queue position → waiting on ComfyUI → live progress bar → `✅ Done in Ns`, or `❌ <error>`), call `replyWithChatAction("upload_photo")` periodically, then reply with the resulting image(s) via `ctx.replyWithPhoto`. See `bot/progress.ts`.
 - On ComfyUI error or timeout: reply with a clear error message, never leave the user hanging silently.
 
 Keep param rendering/parsing in `params.ts` so it's driven entirely by the config schema — no per-workflow hardcoding in handlers.

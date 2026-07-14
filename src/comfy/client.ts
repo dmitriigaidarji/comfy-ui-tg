@@ -7,6 +7,16 @@ import type {
 
 export class ComfyError extends Error {}
 
+/** A tick of execution progress: a node started, or a running node advanced a step. */
+export interface ProgressEvent {
+  /** Id of the node ComfyUI is working on, or null when it isn't saying. */
+  node: string | null;
+  /** Steps done / total, as reported by the node (samplers count sampling steps).
+   *  Absent on a plain node transition — not every node reports granular progress. */
+  value?: number;
+  max?: number;
+}
+
 /** HTTP + WebSocket client for a ComfyUI server. Telegram-free / standalone-testable. */
 export class ComfyClient {
   constructor(
@@ -67,8 +77,16 @@ export class ComfyClient {
   /**
    * Resolve when execution for `promptId` finishes, reject on execution_error or timeout.
    * Finished = an `executing` message with `data.node === null` for our prompt_id.
+   *
+   * `onProgress` fires on every step ComfyUI reports — often several times a second, so
+   * callers must be cheap or throttle. It is best-effort: a run that reports nothing still
+   * completes normally.
    */
-  waitForCompletion(promptId: string, clientId: string): Promise<void> {
+  waitForCompletion(
+    promptId: string,
+    clientId: string,
+    onProgress?: (event: ProgressEvent) => void,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(`ws://${this.host}/ws?clientId=${clientId}`);
 
@@ -94,11 +112,26 @@ export class ComfyClient {
         } catch {
           return;
         }
+        if (msg.type === "progress") {
+          const d = msg.data as ProgressEvent & { prompt_id?: string };
+          // Older ComfyUI omits prompt_id on progress; the frame is addressed to our
+          // clientId regardless, and a stray bar is cosmetic — so only filter when told.
+          if (d.prompt_id !== undefined && d.prompt_id !== promptId) return;
+          onProgress?.({ node: d.node ?? null, value: d.value, max: d.max });
+          return;
+        }
+
+        // Terminal events stay strict: acting on another prompt's would end this run early.
         if (msg.data?.prompt_id !== promptId) return;
 
-        if (msg.type === "executing" && msg.data.node === null) {
-          cleanup();
-          resolve();
+        if (msg.type === "executing") {
+          if (msg.data.node === null) {
+            cleanup();
+            resolve();
+          } else {
+            // Nodes that report no steps of their own at least move the label along.
+            onProgress?.({ node: msg.data.node ?? null });
+          }
         } else if (msg.type === "execution_error") {
           cleanup();
           reject(
