@@ -64,12 +64,19 @@ export interface ParamDef {
   options?: string[];
   /** "message" = plain text messages fill this param (typically the prompt). */
   source?: "message";
+  /** Computed per run rather than set by hand — kept out of /params and the keyboards. */
+  hidden?: boolean;
 }
+
+/** How finished images are sent back. "document" preserves full resolution;
+ *  Telegram re-encodes and downscales anything sent as a photo. */
+export type Delivery = "photo" | "document";
 
 export interface WorkflowConfig {
   name: string;
   title: string;
   description?: string;
+  delivery?: Delivery;
   params: ParamDef[];
 }
 

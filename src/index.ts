@@ -44,6 +44,7 @@ await bot.api.setMyCommands([
   { command: "set", description: "Set a field: /set <key> <value>" },
   { command: "reset", description: "Restore defaults" },
   { command: "run", description: "Generate with current settings" },
+  { command: "upscale", description: "Reply to an image to upscale it" },
   { command: "status", description: "Queue status" },
 ]);
 

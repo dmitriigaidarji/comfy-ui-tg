@@ -2,12 +2,15 @@ import { Glob } from "bun";
 import { join } from "node:path";
 import type {
   ComfyWorkflow,
+  Delivery,
   ParamDef,
   ParamType,
   RegisteredWorkflow,
   WorkflowConfig,
 } from "./types.ts";
 import { pathExists } from "./path.ts";
+
+const DELIVERIES: Delivery[] = ["photo", "document"];
 
 const PARAM_TYPES: ParamType[] = [
   "string",
@@ -28,6 +31,8 @@ function validateConfig(cfg: unknown, file: string): WorkflowConfig {
   const c = cfg as Record<string, unknown>;
   if (typeof c.name !== "string") fail(file, `"name" must be a string`);
   if (typeof c.title !== "string") fail(file, `"title" must be a string`);
+  if (c.delivery !== undefined && !DELIVERIES.includes(c.delivery as Delivery))
+    fail(file, `"delivery" must be one of: ${DELIVERIES.join(", ")}`);
   if (!Array.isArray(c.params)) fail(file, `"params" must be an array`);
 
   const seen = new Set<string>();
@@ -47,7 +52,13 @@ function validateConfig(cfg: unknown, file: string): WorkflowConfig {
     return p as unknown as ParamDef;
   });
 
-  return { name: c.name, title: c.title, description: c.description as string | undefined, params };
+  return {
+    name: c.name,
+    title: c.title,
+    description: c.description as string | undefined,
+    delivery: c.delivery as Delivery | undefined,
+    params,
+  };
 }
 
 /** Discover & load every `<name>.config.json` + `<name>.json` pair. Fails fast on bad input. */
@@ -55,7 +66,11 @@ export async function loadRegistry(dir: string): Promise<Map<string, RegisteredW
   const registry = new Map<string, RegisteredWorkflow>();
   const glob = new Glob("*.config.json");
 
-  for await (const rel of glob.scan(dir)) {
+  // Sorted: scan order is filesystem-dependent, and insertion order decides both the
+  // /workflows listing and the fallback default workflow when DEFAULT_WORKFLOW is unset.
+  const files = (await Array.fromAsync(glob.scan(dir))).sort();
+
+  for (const rel of files) {
     const configPath = join(dir, rel);
     const base = rel.replace(/\.config\.json$/, "");
     const workflowPath = join(dir, `${base}.json`);

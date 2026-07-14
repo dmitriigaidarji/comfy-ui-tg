@@ -1,0 +1,114 @@
+{
+  "name": "upscale",
+  "title": "Ultimate SD Upscale · RealESRGAN ×4",
+  "description": "Upscale an image with RealESRGAN_x4plus + a tiled Krea 2 refinement pass. Output is capped at 4K, so the source is fitted to 3840/upscale_by first.",
+  "delivery": "document",
+  "params": [
+    {
+      "key": "image",
+      "label": "Input image",
+      "path": "1.inputs.image",
+      "type": "image",
+      "required": true
+    },
+    {
+      "key": "prompt",
+      "label": "Prompt",
+      "path": "5.inputs.text",
+      "type": "string",
+      "default": "high quality, sharp focus, fine detail, realistic texture",
+      "source": "message"
+    },
+    {
+      "key": "fit_scale",
+      "label": "Source fit scale",
+      "path": "10.inputs.scale_by",
+      "type": "float",
+      "default": 1,
+      "min": 0.01,
+      "max": 1,
+      "hidden": true
+    },
+    {
+      "key": "upscale_by",
+      "label": "Upscale by",
+      "path": "8.inputs.upscale_by",
+      "type": "float",
+      "default": 2,
+      "min": 1,
+      "max": 4,
+      "step": 0.05
+    },
+    {
+      "key": "denoise",
+      "label": "Denoise",
+      "path": "8.inputs.denoise",
+      "type": "float",
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "steps",
+      "label": "Steps",
+      "path": "8.inputs.steps",
+      "type": "int",
+      "default": 10,
+      "min": 1,
+      "max": 50
+    },
+    {
+      "key": "cfg",
+      "label": "CFG",
+      "path": "8.inputs.cfg",
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 20
+    },
+    {
+      "key": "tile_width",
+      "label": "Tile width",
+      "path": "8.inputs.tile_width",
+      "type": "int",
+      "default": 1024,
+      "min": 64,
+      "max": 8192,
+      "step": 8
+    },
+    {
+      "key": "tile_height",
+      "label": "Tile height",
+      "path": "8.inputs.tile_height",
+      "type": "int",
+      "default": 1024,
+      "min": 64,
+      "max": 8192,
+      "step": 8
+    },
+    {
+      "key": "mode_type",
+      "label": "Tile mode",
+      "path": "8.inputs.mode_type",
+      "type": "enum",
+      "default": "Linear",
+      "options": ["Linear", "Chess", "None"]
+    },
+    {
+      "key": "seam_fix_mode",
+      "label": "Seam fix",
+      "path": "8.inputs.seam_fix_mode",
+      "type": "enum",
+      "default": "None",
+      "options": ["None", "Band Pass", "Half Tile", "Half Tile + Intersections"]
+    },
+    {
+      "key": "seed",
+      "label": "Seed",
+      "path": "8.inputs.seed",
+      "type": "seed",
+      "default": -1
+    }
+  ]
+}

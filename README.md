@@ -181,6 +181,24 @@ Each config declares the workflow's metadata and its user-editable params. Every
 - `min` / `max` / `step`: numeric bounds for `int`/`float`, enforced on input.
 - `options`: allowed values for `enum` (rendered as inline-keyboard buttons).
 - `source`: optional hint for where the value comes from. `"message"` = a plain text message to the bot fills this param (typically the prompt); `image` params are auto-filled by an uploaded photo. Absent = set only via the params UI / `/set`.
+- `hidden`: if true, the bot computes this value per run — it's kept out of `/params` and rejected by `/set`, so a user can't override it. Used by `upscale`'s `fit_scale`, which the handler derives from the source image's dimensions to hold output at 4K (see below).
+
+**Top-level config fields** (besides `name` / `title` / `description` / `params`):
+- `delivery`: `"photo"` (default) | `"document"` — how finished images are sent back. Telegram re-encodes and downscales anything sent as a photo, so workflows whose whole point is resolution (e.g. `upscale`) set `"document"` to preserve it.
+
+**Output size cap (`upscale`)**
+
+Cost scales with the upscaler's *output*: USDU refines it in fixed-size tiles and the VAE decodes it, so a large result is what OOMs the card. Output is capped at **3840px (4K)** on the longest side. Before queueing, `upscale()` reads the source's dimensions out of its header (`src/image.ts`, no decode) and writes a `fit_scale` into the workflow's `ImageScaleBy` node, fitting the source to `3840 / upscale_by` with the aspect ratio intact — 960px at ×4, 1920px at ×2. Anything already under that scales by 1 and passes through untouched.
+
+Deriving the cap from `upscale_by` rather than hardcoding a source size keeps the 4K bound true whatever the multiplier is set to. The guard fails closed — an unreadable header, or an `upscale` workflow with no `fit_scale` param, is refused rather than run.
+
+**Why `upscale_by` defaults to 2, not 4**
+
+RealESRGAN_x4plus is a ×4 model, and USDU runs it then resizes to the requested factor. At ×4 you get its raw output, artifacts and all — visibly grainy on photos. At ×2 it runs ×4 and halves the result, averaging those artifacts out. Since the 4K cap lets a ×2 run start from a 1920px source instead of 960px, ×2 reaches the same output resolution for the same tile count, keeps twice as much real detail, and looks cleaner.
+
+**Why `denoise` defaults to 0.4**
+
+Krea 2 turbo is few-step distilled: it's trained to resolve noise in large jumps, and it does that poorly at low denoise, leaving visible grain in the refined tiles. 0.2 was inherited from the source workflow's upscaler group, which was disabled and had never actually been run. 0.4 gives the sampler enough to work with while staying close to the source. `steps` is at 10 on the same reasoning — 8 also looks fine, and 20 was tried but is too slow to be worth it on a per-tile sampler.
 
 **Loader (`registry.ts`)** at startup:
 - Glob `/workflows/*.config.json`; for each, load the sibling `<name>.json`.

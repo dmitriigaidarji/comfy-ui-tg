@@ -20,10 +20,12 @@ function displayValue(session: Session, p: ParamDef): string {
 
 /** Human-readable summary of the active workflow's params + values. */
 export function renderParams(wf: RegisteredWorkflow, session: Session): string {
-  const lines = wf.config.params.map((p) => {
-    const req = p.required ? " ❗" : "";
-    return `• *${escapeMd(p.label)}*${req} (\`${p.key}\`): ${escapeMd(displayValue(session, p))}`;
-  });
+  const lines = wf.config.params
+    .filter((p) => !p.hidden)
+    .map((p) => {
+      const req = p.required ? " ❗" : "";
+      return `• *${escapeMd(p.label)}*${req} (\`${p.key}\`): ${escapeMd(displayValue(session, p))}`;
+    });
   return `*${escapeMd(wf.title)}*\n\n${lines.join("\n")}\n\nEdit with /set \`<key> <value>\` or the buttons below.`;
 }
 
@@ -31,7 +33,7 @@ export function renderParams(wf: RegisteredWorkflow, session: Session): string {
 export function paramsKeyboard(wf: RegisteredWorkflow): InlineKeyboard {
   const kb = new InlineKeyboard();
   for (const p of wf.config.params) {
-    if (p.type === "image") continue; // set by sending a photo
+    if (p.type === "image" || p.hidden) continue; // image: set by sending a photo
     kb.text(`✏️ ${p.label}`, `edit:${p.key}`).row();
   }
   return kb;
@@ -49,6 +51,11 @@ export function boolKeyboard(p: ParamDef): InlineKeyboard {
   return new InlineKeyboard()
     .text("✅ true", `setval:${p.key}:true`)
     .text("❌ false", `setval:${p.key}:false`);
+}
+
+/** One-tap "upscale this image" button, attached to images posted in the chat. */
+export function upscaleKeyboard(): InlineKeyboard {
+  return new InlineKeyboard().text("🔍 Upscale", "upscale");
 }
 
 /** Inline keyboard for picking a workflow. */

@@ -2,6 +2,7 @@
   "name": "krea-image",
   "title": "Krea 2 · Text → Image",
   "description": "Generate an image from a text prompt (Krea 2 turbo).",
+  "delivery": "document",
   "params": [
     {
       "key": "prompt",
@@ -17,7 +18,7 @@
       "label": "Width",
       "path": "10.inputs.width",
       "type": "int",
-      "default": 1024,
+      "default": 960,
       "min": 256,
       "max": 2560,
       "step": 8
@@ -27,7 +28,7 @@
       "label": "Height",
       "path": "10.inputs.height",
       "type": "int",
-      "default": 1024,
+      "default": 960,
       "min": 256,
       "max": 2560,
       "step": 8
